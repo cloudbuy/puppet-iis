@@ -4,9 +4,9 @@ define iis::manage_app_pool($app_pool_name = $title, $enable_32_bit = false, $ma
   validate_bool($enable_32_bit)
   validate_re($managed_runtime_version, ['^(v2\.0|v4\.0)$'])
   validate_re($managed_pipeline_mode, ['^(Integrated|Classic)$'])
-  validate_re($ensure, '^(present|installed|absent|purged)$', 'ensure must be one of \'present\', \'installed\', \'absent\', \'purged\'')
+  validate_re($ensure, '^(present|installed|absent|purged|running|stopped)$', 'ensure must be one of \'present\', \'installed\', \'absent\', \'purged\', \'running\', \'stopped\'')
 
-  if ($ensure in ['present','installed']) {
+  if ($ensure in ['present','installed','running','stopped']) {
     exec { "Create-${app_pool_name}" :
       command   => "Import-Module WebAdministration; New-Item \"IIS:\\AppPools\\${app_pool_name}\"",
       provider  => powershell,
@@ -43,6 +43,28 @@ define iis::manage_app_pool($app_pool_name = $title, $enable_32_bit = false, $ma
       require   => Exec["Create-${app_pool_name}"],
       logoutput => true,
     }
+
+    case $ensure {
+      'stopped': {
+        exec { "State-${app_pool_name}":
+          command   => "Import-Module WebAdministration; Stop-WebAppPool -Name \"${app_pool_name}\"",
+          provider  => powershell,
+          onlyif    => "Import-Module WebAdministration; if((Get-ItemProperty \"IIS:\\AppPools\\${app_pool_name}\" State).Value.CompareTo('Stopped') -eq 0) { exit 1 } else { exit 0 }",
+          require   => Exec["Create-${app_pool_name}"],
+          logoutput => true,
+        }
+      }
+      default: {
+        exec { "State-${app_pool_name}":
+          command   => "Import-Module WebAdministration; Start-WebAppPool -Name \"${app_pool_name}\"",
+          provider  => powershell,
+          onlyif    => "Import-Module WebAdministration; if((Get-ItemProperty \"IIS:\\AppPools\\${app_pool_name}\" State).Value.CompareTo('Running') -eq 0) { exit 1 } else { exit 0 }",
+          require   => Exec["Create-${app_pool_name}"],
+          logoutput => true,
+        }
+      }
+    }
+
   } else {
     exec { "Delete-${app_pool_name}" :
       command   => "Import-Module WebAdministration; Remove-Item \"IIS:\\AppPools\\${app_pool_name}\" -Recurse",
