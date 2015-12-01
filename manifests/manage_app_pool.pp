@@ -46,7 +46,7 @@ define iis::manage_app_pool($app_pool_name = $title, $enable_32_bit = false, $ma
 
     case $ensure {
       'stopped': {
-        exec { "State-${app_pool_name}":
+        exec { "Stop-${app_pool_name}":
           command   => "Import-Module WebAdministration; Stop-WebAppPool -Name \"${app_pool_name}\"",
           provider  => powershell,
           onlyif    => "Import-Module WebAdministration; if((Get-ItemProperty \"IIS:\\AppPools\\${app_pool_name}\" State).Value.CompareTo('Stopped') -eq 0) { exit 1 } else { exit 0 }",
@@ -55,10 +55,10 @@ define iis::manage_app_pool($app_pool_name = $title, $enable_32_bit = false, $ma
         }
       }
       default: {
-        exec { "State-${app_pool_name}":
+        exec { "Start-${app_pool_name}":
           command   => "Import-Module WebAdministration; Start-WebAppPool -Name \"${app_pool_name}\"",
           provider  => powershell,
-          onlyif    => "Import-Module WebAdministration; if((Get-ItemProperty \"IIS:\\AppPools\\${app_pool_name}\" State).Value.CompareTo('Running') -eq 0) { exit 1 } else { exit 0 }",
+          onlyif    => "Import-Module WebAdministration; if((Get-ItemProperty \"IIS:\\AppPools\\${app_pool_name}\" State).Value.CompareTo('Started') -eq 0) { exit 1 } else { exit 0 }",
           require   => Exec["Create-${app_pool_name}"],
           logoutput => true,
         }
